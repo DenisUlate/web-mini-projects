@@ -74,10 +74,206 @@ function App() {
 		return "bg-red-600 text-white";
 	};
 
+	// Función para mover y fusionar hacia la izquierda
+	const moveLeft = (board: Board): { newBoard: Board; scoreGained: number } => {
+		let scoreGained = 0;
+		const newBoard = board.map((row) => {
+			// Filtrar ceros
+			const filtered = row.filter((cell) => cell !== 0);
+			const merged = [];
+			let i = 0;
+
+			// Proceso de fusión
+			while (i < filtered.length) {
+				if (i < filtered.length - 1 && filtered[i] === filtered[i + 1]) {
+					// Fusionar números iguales
+					const mergedValue = filtered[i] * 2;
+					merged.push(mergedValue);
+					scoreGained += mergedValue;
+					i += 2; // Saltar el siguiente número ya que se fusionó
+				} else {
+					// Mantener número sin cambios
+					merged.push(filtered[i]);
+					i += 1;
+				}
+			}
+
+			// Completar con ceros
+			while (merged.length < 4) {
+				merged.push(0);
+			}
+
+			return merged;
+		});
+
+		return { newBoard, scoreGained };
+	};
+
+	// Función para mover y fusionar hacia la derecha
+	const moveRight = (board: Board): { newBoard: Board; scoreGained: number } => {
+		let scoreGained = 0;
+		const newBoard = board.map((row) => {
+			// Filtrar ceros y invertir para procesar desde la derecha
+			const filtered = row.filter((cell) => cell !== 0).reverse();
+			const merged = [];
+			let i = 0;
+
+			// Proceso de fusión
+			while (i < filtered.length) {
+				if (i < filtered.length - 1 && filtered[i] === filtered[i + 1]) {
+					const mergedValue = filtered[i] * 2;
+					merged.push(mergedValue);
+					scoreGained += mergedValue;
+					i += 2;
+				} else {
+					merged.push(filtered[i]);
+					i += 1;
+				}
+			}
+
+			// Completar con ceros al inicio y revertir
+			while (merged.length < 4) {
+				merged.push(0);
+			}
+
+			return merged.reverse();
+		});
+
+		return { newBoard, scoreGained };
+	};
+
+	// Función para mover y fusionar hacia arriba
+	const moveUp = (board: Board): { newBoard: Board; scoreGained: number } => {
+		let scoreGained = 0;
+		const newBoard = createEmptyBoard();
+
+		for (let col = 0; col < 4; col++) {
+			// Extraer columna y filtrar ceros
+			const column = [];
+			for (let row = 0; row < 4; row++) {
+				if (board[row][col] !== 0) {
+					column.push(board[row][col]);
+				}
+			}
+
+			// Proceso de fusión en la columna
+			const merged = [];
+			let i = 0;
+
+			while (i < column.length) {
+				if (i < column.length - 1 && column[i] === column[i + 1]) {
+					const mergedValue = column[i] * 2;
+					merged.push(mergedValue);
+					scoreGained += mergedValue;
+					i += 2;
+				} else {
+					merged.push(column[i]);
+					i += 1;
+				}
+			}
+
+			// Llenar la columna en el tablero
+			for (let row = 0; row < 4; row++) {
+				newBoard[row][col] = merged[row] || 0;
+			}
+		}
+
+		return { newBoard, scoreGained };
+	};
+
+	// Función para mover y fusionar hacia abajo
+	const moveDown = (board: Board): { newBoard: Board; scoreGained: number } => {
+		let scoreGained = 0;
+		const newBoard = createEmptyBoard();
+
+		for (let col = 0; col < 4; col++) {
+			// Extraer columna, filtrar ceros e invertir para procesar desde abajo
+			const column = [];
+			for (let row = 3; row >= 0; row--) {
+				if (board[row][col] !== 0) {
+					column.push(board[row][col]);
+				}
+			}
+
+			// Proceso de fusión
+			const merged = [];
+			let i = 0;
+
+			while (i < column.length) {
+				if (i < column.length - 1 && column[i] === column[i + 1]) {
+					const mergedValue = column[i] * 2;
+					merged.push(mergedValue);
+					scoreGained += mergedValue;
+					i += 2;
+				} else {
+					merged.push(column[i]);
+					i += 1;
+				}
+			}
+
+			// Llenar la columna desde abajo hacia arriba
+			for (let row = 3; row >= 0; row--) {
+				const index = 3 - row;
+				newBoard[row][col] = merged[index] || 0;
+			}
+		}
+
+		return { newBoard, scoreGained };
+	};
+	// Función para manejar el movimiento según la tecla presionada
+	const handleMove = (direction: string) => {
+		let result: { newBoard: Board; scoreGained: number };
+
+		switch (direction) {
+			case "ArrowLeft":
+				result = moveLeft(board);
+				break;
+			case "ArrowRight":
+				result = moveRight(board);
+				break;
+			case "ArrowUp":
+				result = moveUp(board);
+				break;
+			case "ArrowDown":
+				result = moveDown(board);
+				break;
+			default:
+				return;
+		}
+
+		const { newBoard, scoreGained } = result;
+
+		// Solo actualizar si el tablero cambió
+		if (JSON.stringify(newBoard) !== JSON.stringify(board)) {
+			const boardWithNewNumber = addRandomNumber(newBoard);
+			setBoard(boardWithNewNumber);
+			setScore((prevScore) => prevScore + scoreGained);
+		}
+	};
+
 	// Inicializar el juego cuando el componente se monta
 	useEffect(() => {
 		initializeGame();
 	}, []);
+
+	// Event listener para las teclas de flecha
+	useEffect(() => {
+		const handleKeyPress = (event: KeyboardEvent) => {
+			// Prevenir el scroll de la página con las flechas
+			if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+				event.preventDefault();
+				handleMove(event.key);
+			}
+		};
+
+		// Agregar el event listener
+		window.addEventListener("keydown", handleKeyPress);
+
+		// Limpiar el event listener cuando el componente se desmonta
+		return () => {
+			window.removeEventListener("keydown", handleKeyPress);
+		};
+	}, [board]); // Dependencia del board para tener acceso al estado actual
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
